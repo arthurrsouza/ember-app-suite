@@ -1,7 +1,7 @@
-import Card from 'ember-app-suite/components/form/card'
-import InputCheckbox from 'ember-app-suite/components/form/input-checkbox'
+import FormCard from 'ember-app-suite/components/form/card'
+import FormInputCheckbox from 'ember-app-suite/components/form/input-checkbox'
 
 <template>
-	<Card></Card>
-	<InputCheckbox></InputCheckbox>
+	<FormCard></FormCard>
+	<FormInputCheckbox></FormInputCheckbox>
 </template>

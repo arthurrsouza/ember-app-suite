@@ -1,5 +1,5 @@
-import Button from 'ember-app-suite/components/form/button'
+import FormButton from 'ember-app-suite/components/form/button'
 
 <template>
-    <Button></Button>
+    <FormButton></FormButton>
 </template>

@@ -25,13 +25,11 @@ export default function generateAssetsPlugin(options = {}) {
   function findModule(moduleName, currentModulePath = '') {
     let normalizedModuleName = moduleName;
 
-    // Extrai o caminho após o nome do pacote (ex: ember-app-suite/components/form/button.gjs -> components/form/button.gjs)
     if (moduleName.includes('/')) {
       const [, , ...pathParts] = moduleName.split('/');
       normalizedModuleName = pathParts.join('/');
     }
 
-    // Remove a extensão .gjs se existir
     normalizedModuleName = normalizedModuleName.replace(/\.gjs$/, '');
 
     const possiblePaths = [
@@ -58,7 +56,6 @@ export default function generateAssetsPlugin(options = {}) {
     let match;
 
     while ((match = importRegex.exec(content)) !== null) {
-      // Apenas considera importações que começam com o nome do pacote
       if (match[1].startsWith('ember-app-suite/')) {
         imports.push(match[1]);
       }
@@ -68,19 +65,15 @@ export default function generateAssetsPlugin(options = {}) {
   }
 
   function findAllDependencies(module, foundModules = new Set()) {
-    // Se o módulo já foi processado, retorna para evitar loops infinitos
     if (foundModules.has(module.fullPath)) {
       return foundModules;
     }
 
-    // Adiciona o módulo atual ao conjunto
     foundModules.add(module.fullPath);
 
-    // Lê o conteúdo do módulo
     const content = fs.readFileSync(module.fullPath, 'utf8');
     const localImports = extractLocalImports(content);
 
-    // Processa recursivamente cada importação
     localImports.forEach(importName => {
       const dependencyModule = findModule(importName, module.fullPath);
       if (dependencyModule) {
@@ -91,92 +84,116 @@ export default function generateAssetsPlugin(options = {}) {
     return foundModules;
   }
 
-  function createModuleInfo(module) {
-    const packageData = readPackageJson();
-    const moduleName = module.relativePath.replace('.gjs', '');
-    
-    return {
-      name: `ember-app-suite/components/${moduleName}`,
-      url: `${serverUrl}/${publicURL}/${module.relativePath}`,
-      version: packageData.version || '0.0.0',
-      type: "ember-extension"
-    };
-  }
+  function generateBundleContent(entryModule, allModules) {
+    let bundleContent = '';
+    const moduleMap = new Map();
 
-  function generateFiles(modules) {
-    modules.forEach((module) => {
-      const modulePath = path.dirname(module.relativePath);
-      const moduleOutputDir = path.join(outputDir, modulePath);
-      const moduleContent = fs.readFileSync(module.fullPath);
+    // Primeiro, adiciona todas as importações não locais encontradas em todos os módulos
+    allModules.forEach(module => {
+      const content = fs.readFileSync(module.fullPath, 'utf8');
+      const lines = content.split('\n');
       
-      if (!moduleContent.toString) {
-        console.warn(`⚠️ Couldn't read ${module.relativePath} content.`);
-        return;
-      }
-
-      if (!fs.existsSync(moduleOutputDir)) {
-        fs.mkdirSync(moduleOutputDir, { recursive: true });
-      }
-
-      const filePath = path.join(outputDir, module.relativePath);
-      const content = moduleContent.toString();
-      
-      fs.writeFileSync(filePath, content);
-      console.log(`✔ File generated: ${filePath}`);
+      lines.forEach(line => {
+        if (line.startsWith('import') && !line.includes('ember-app-suite/')) {
+          bundleContent += line + '\n';
+        }
+      });
     });
+
+    bundleContent += '\n';
+
+    // Depois, adiciona o conteúdo de cada módulo como uma constante
+    allModules.forEach(module => {
+      const content = fs.readFileSync(module.fullPath, 'utf8');
+      const moduleName = module.relativePath
+        .replace(/\.gjs$/, '')
+        .replace(/^(.)/, match => match.toUpperCase())  // Primeira letra maiúscula
+        .replace(/\/(.)/g, (_, char) => char.toUpperCase())  // Converte letra após a barra para maiúscula
+        .replace(/-./g, match => match[1].toUpperCase()); // Converte letra após hífen para maiúscula
+
+      // Remove as importações locais e não locais
+      let moduleContent = content.split('\n')
+        .filter(line => !line.startsWith('import'))
+        .join('\n');
+
+      // Substitui as referências locais pelos nomes das constantes
+      allModules.forEach(dep => {
+        const depName = dep.relativePath
+          .replace(/\.gjs$/, '')
+          .replace(/^(.)/, match => match.toUpperCase())  // Primeira letra maiúscula
+          .replace(/\/(.)/g, (_, char) => char.toUpperCase())  // Converte letra após a barra para maiúscula
+          .replace(/-./g, match => match[1].toUpperCase()); // Converte letra após hífen para maiúscula
+        
+        const importPath = `ember-app-suite/components/${dep.relativePath.replace(/\.gjs$/, '')}`;
+        moduleContent = moduleContent.replace(
+          new RegExp(importPath, 'g'),
+          depName
+        );
+      });
+
+      bundleContent += `const ${moduleName} = ${moduleContent.trim()};\n\n`;
+      moduleMap.set(module.fullPath, moduleName);
+    });
+
+    // Por fim, exporta o módulo de entrada como default
+    const entryName = moduleMap.get(entryModule.fullPath);
+    bundleContent += `export default ${entryName};\n`;
+
+    return bundleContent;
   }
 
-  function generateManifest() {
+  function generateBundle() {
     const packageData = readPackageJson();
     const peekConfig = packageData['peek-extensions'] || {};
     const entryPoint = peekConfig['entry-point'];
 
-    // Encontra o módulo de entrada
     const entryModule = findModule(entryPoint.replace('.gjs', ''));
     if (!entryModule) {
       console.warn(`⚠️ Entry point ${entryPoint} not found`);
       return;
     }
 
-    // Encontra todas as dependências recursivamente
     const allModulePaths = findAllDependencies(entryModule);
-    
-    // Converte os caminhos completos em módulos
     const allModules = Array.from(allModulePaths).map(fullPath => ({
       fullPath,
       relativePath: path.relative(modulesRoot, fullPath)
     }));
 
-    // Gera os arquivos
-    generateFiles(allModules);
+    // Cria o diretório de saída se não existir
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    // Gera o bundle
+    const bundleContent = generateBundleContent(entryModule, allModules);
+    const bundlePath = path.join(outputDir, 'bundle.gjs');
+    fs.writeFileSync(bundlePath, bundleContent);
+    console.log(`✔ Bundle generated: ${bundlePath}`);
 
     // Gera o manifest
     const manifest = {
-      dependencies: [],
-      mainDependency: createModuleInfo(entryModule)
+      mainDependency: {
+        name: `ember-app-suite/components/${entryModule.relativePath.replace('.gjs', '')}`,
+        url: `${serverUrl}/${publicURL}/bundle.gjs`,
+        version: packageData.version || '0.0.0',
+        type: "ember-extension"
+      }
     };
 
-    // Adiciona as dependências (excluindo o módulo de entrada)
-    allModules.forEach(module => {
-      if (module.fullPath !== entryModule.fullPath) {
-        manifest.dependencies.unshift(createModuleInfo(module));
-      }
-    });
-
     fs.writeFileSync(
-      `${outputDir}/manifest.json`, 
+      `${outputDir}/manifest.json`,
       JSON.stringify(manifest, null, 2)
     );
 
     console.log(`✔ Manifest generated with server URL: ${serverUrl}`);
-    console.log(`📦 Dependencies found:`, allModules.length - 1);
+    console.log(`📦 Components bundled:`, allModules.length);
   }
 
   return {
     name: 'vite-plugin-generate-assets',
 
     buildStart() {
-      generateManifest();
+      generateBundle();
     },
 
     configureServer(server) {
@@ -189,13 +206,13 @@ export default function generateAssetsPlugin(options = {}) {
         serverUrl = `${protocol}://${host}:${port}`;
         console.log(`📡 Server Vite running at: ${serverUrl}`);
         
-        generateManifest();
+        generateBundle();
       });
 
       server.watcher.on('change', (filePath) => {
         if (filePath.startsWith(path.resolve(modulesRoot))) {
           console.log(`🔄 File changed: ${filePath}`);
-          generateManifest();
+          generateBundle();
         }
       });
     },

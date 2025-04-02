@@ -1,10 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 
-function uncapitalize (string) {
-  return string.charAt(0).toLowerCase() + string.slice(1)
-}
-
 export default function generateAssetsPlugin(options = {}) {
   const { 
     modulesRoot = 'app/components', 
@@ -26,10 +22,21 @@ export default function generateAssetsPlugin(options = {}) {
     }
   }
 
-  function findModule(moduleName) {
+  function findModule(moduleName, currentModulePath = '') {
+    let normalizedModuleName = moduleName;
+
+    // Extrai o caminho após o nome do pacote (ex: ember-app-suite/components/form/button.gjs -> components/form/button.gjs)
+    if (moduleName.includes('/')) {
+      const [, , ...pathParts] = moduleName.split('/');
+      normalizedModuleName = pathParts.join('/');
+    }
+
+    // Remove a extensão .gjs se existir
+    normalizedModuleName = normalizedModuleName.replace(/\.gjs$/, '');
+
     const possiblePaths = [
-      path.join(modulesRoot, `${moduleName}.gjs`),
-      path.join(modulesRoot, moduleName, 'index.gjs')
+      path.join(modulesRoot, `${normalizedModuleName}.gjs`),
+      path.join(modulesRoot, normalizedModuleName, 'index.gjs')
     ];
 
     for (const fullPath of possiblePaths) {
@@ -41,19 +48,20 @@ export default function generateAssetsPlugin(options = {}) {
       }
     }
     
-    console.warn(`⚠️ Module not found: ${moduleName}`);
+    console.warn(`⚠️ Module not found: ${moduleName} (from ${currentModulePath || 'root'})`);
     return null;
   }
 
   function extractLocalImports(content) {
-    const importRegex = /import\s+(?:\w+\s+from\s+)?['"](\.\/.+?)['"];?/g;
+    const importRegex = /import\s+(?:\w+\s+from\s+)?['"]([^"']+?)['"];?/g;
     const imports = [];
     let match;
 
     while ((match = importRegex.exec(content)) !== null) {
-      const importPath = match[1];
-      const componentName = uncapitalize(importPath.replace(/\.gjs$/, '').replace('./', ''));
-      imports.push(componentName);
+      // Apenas considera importações que começam com o nome do pacote
+      if (match[1].startsWith('ember-app-suite/')) {
+        imports.push(match[1]);
+      }
     }
 
     return imports;
@@ -74,7 +82,7 @@ export default function generateAssetsPlugin(options = {}) {
 
     // Processa recursivamente cada importação
     localImports.forEach(importName => {
-      const dependencyModule = findModule(importName);
+      const dependencyModule = findModule(importName, module.fullPath);
       if (dependencyModule) {
         findAllDependencies(dependencyModule, foundModules);
       }
@@ -83,12 +91,12 @@ export default function generateAssetsPlugin(options = {}) {
     return foundModules;
   }
 
-  function createModuleInfo(module, isEntryPoint = false) {
+  function createModuleInfo(module) {
     const packageData = readPackageJson();
     const moduleName = module.relativePath.replace('.gjs', '');
     
     return {
-      name: `./${isEntryPoint ? moduleName : moduleName}`,
+      name: `ember-app-suite/components/${moduleName}`,
       url: `${serverUrl}/${publicURL}/${module.relativePath}`,
       version: packageData.version || '0.0.0',
       type: "ember-extension"
@@ -145,13 +153,13 @@ export default function generateAssetsPlugin(options = {}) {
     // Gera o manifest
     const manifest = {
       dependencies: [],
-      mainDependency: createModuleInfo(entryModule, true)
+      mainDependency: createModuleInfo(entryModule)
     };
 
     // Adiciona as dependências (excluindo o módulo de entrada)
     allModules.forEach(module => {
       if (module.fullPath !== entryModule.fullPath) {
-        manifest.dependencies.push(createModuleInfo(module, false));
+        manifest.dependencies.unshift(createModuleInfo(module));
       }
     });
 

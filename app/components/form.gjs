@@ -1,5 +1,5 @@
-import Card from './form/card'
-import InputCheckbox from './form/input-checkbox'
+import Card from 'ember-app-suite/components/form/card'
+import InputCheckbox from 'ember-app-suite/components/form/input-checkbox'
 
 <template>
 	<Card></Card>

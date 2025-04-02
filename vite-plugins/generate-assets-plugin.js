@@ -87,31 +87,34 @@ export default function generateAssetsPlugin(options = {}) {
   function generateBundleContent(entryModule, allModules) {
     let bundleContent = '';
     const moduleMap = new Map();
+    const uniqueImports = new Set();
 
-    // Primeiro, adiciona todas as importações não locais encontradas em todos os módulos
+    // Primeiro, coleta todas as importações não locais de todos os módulos
     allModules.forEach(module => {
       const content = fs.readFileSync(module.fullPath, 'utf8');
       const lines = content.split('\n');
       
       lines.forEach(line => {
         if (line.startsWith('import') && !line.includes('ember-app-suite/')) {
-          bundleContent += line + '\n';
+          uniqueImports.add(line);
         }
       });
     });
 
-    bundleContent += '\n';
+    // Adiciona as importações únicas no início do bundle
+    bundleContent += Array.from(uniqueImports).join('\n');
+    bundleContent += '\n\n';
 
     // Depois, adiciona o conteúdo de cada módulo como uma constante
     allModules.forEach(module => {
       const content = fs.readFileSync(module.fullPath, 'utf8');
       const moduleName = module.relativePath
         .replace(/\.gjs$/, '')
-        .replace(/^(.)/, match => match.toUpperCase())  // Primeira letra maiúscula
-        .replace(/\/(.)/g, (_, char) => char.toUpperCase())  // Converte letra após a barra para maiúscula
-        .replace(/-./g, match => match[1].toUpperCase()); // Converte letra após hífen para maiúscula
+        .replace(/^(.)/, match => match.toUpperCase())
+        .replace(/\/(.)/g, (_, char) => char.toUpperCase())
+        .replace(/-./g, match => match[1].toUpperCase());
 
-      // Remove as importações locais e não locais
+      // Remove todas as importações do conteúdo do módulo
       let moduleContent = content.split('\n')
         .filter(line => !line.startsWith('import'))
         .join('\n');
@@ -125,9 +128,9 @@ export default function generateAssetsPlugin(options = {}) {
       allModules.forEach(dep => {
         const depName = dep.relativePath
           .replace(/\.gjs$/, '')
-          .replace(/^(.)/, match => match.toUpperCase())  // Primeira letra maiúscula
-          .replace(/\/(.)/g, (_, char) => char.toUpperCase())  // Converte letra após a barra para maiúscula
-          .replace(/-./g, match => match[1].toUpperCase()); // Converte letra após hífen para maiúscula
+          .replace(/^(.)/, match => match.toUpperCase())
+          .replace(/\/(.)/g, (_, char) => char.toUpperCase())
+          .replace(/-./g, match => match[1].toUpperCase());
         
         const importPath = `ember-app-suite/components/${dep.relativePath.replace(/\.gjs$/, '')}`;
         moduleContent = moduleContent.replace(

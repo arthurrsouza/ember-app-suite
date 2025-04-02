@@ -1,7 +1,7 @@
 {
   "mainDependency": {
-    "name": "ember-app-suite/components/form",
-    "url": "http://localhost:4207/assets/extension-files/bundle.gjs",
+    "name": "ember-app-suite/components/extension-trigger",
+    "url": "http://localhost:4205/assets/extension-files/bundle.gjs",
     "version": "0.0.0",
     "type": "ember-extension"
   }

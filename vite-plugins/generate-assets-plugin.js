@@ -116,6 +116,11 @@ export default function generateAssetsPlugin(options = {}) {
         .filter(line => !line.startsWith('import'))
         .join('\n');
 
+      // Remove 'export default' e ajusta a definição da classe
+      moduleContent = moduleContent
+        .replace(/export\s+default\s+class\s+(\w+)/, 'class $1')
+        .trim();
+
       // Substitui as referências locais pelos nomes das constantes
       allModules.forEach(dep => {
         const depName = dep.relativePath
@@ -131,7 +136,7 @@ export default function generateAssetsPlugin(options = {}) {
         );
       });
 
-      bundleContent += `const ${moduleName} = ${moduleContent.trim()};\n\n`;
+      bundleContent += `const ${moduleName} = ${moduleContent};\n\n`;
       moduleMap.set(module.fullPath, moduleName);
     });
 

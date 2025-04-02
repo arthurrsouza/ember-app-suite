@@ -90,6 +90,6 @@
     "./*": "./app/*"
   },
   "peek-extensions": { 
-    "entry-point": "form.gjs"
+    "entry-point": "extension-trigger.gjs"
   }
 }

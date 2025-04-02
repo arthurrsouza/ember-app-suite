@@ -4,7 +4,7 @@ import { tracked } from '@glimmer/tracking';
 import OdyButton from '@peek-ui/ember-odyssey/components/button';
 import OdyModal from '@peek-ui/ember-odyssey/components/modal';
 
-const ExtensionTrigger = class ExtensionTrigger extends Component {
+export default class ExtensionTrigger extends Component {
 	@tracked modalIsVisible = false;
 
 	@action
@@ -19,6 +19,4 @@ const ExtensionTrigger = class ExtensionTrigger extends Component {
 			Hello!
 		</OdyModal>
 	</template>
-};
-
-export default ExtensionTrigger;
+}

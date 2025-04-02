@@ -1,0 +1,22 @@
+{
+  "dependencies": [
+    {
+      "name": "./form/card",
+      "url": "http://localhost:4205/assets/extension-files/form/card.gjs",
+      "version": "0.0.0",
+      "type": "ember-extension"
+    },
+    {
+      "name": "./form/input-checkbox",
+      "url": "http://localhost:4205/assets/extension-files/form/input-checkbox.gjs",
+      "version": "0.0.0",
+      "type": "ember-extension"
+    }
+  ],
+  "mainDependency": {
+    "name": "./form",
+    "url": "http://localhost:4205/assets/extension-files/form.gjs",
+    "version": "0.0.0",
+    "type": "ember-extension"
+  }
+}

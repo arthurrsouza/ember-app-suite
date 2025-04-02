@@ -23,3 +23,6 @@
 
 # broccoli-debug
 /DEBUG/
+
+/public/extension-files
+/public/extension-files/*

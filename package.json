@@ -88,5 +88,8 @@
   "exports": {
     "./tests/*": "./tests/*",
     "./*": "./app/*"
+  },
+  "peek-extensions": { 
+    "entry-point": "form.gjs"
   }
 }

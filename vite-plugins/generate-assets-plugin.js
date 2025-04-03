@@ -89,7 +89,7 @@ export default function generateAssetsPlugin(options = {}) {
     const moduleMap = new Map();
     const uniqueImports = new Set();
 
-    // Primeiro, coleta todas as importações não locais de todos os módulos
+    // First, collect all non-local imports from all modules
     allModules.forEach(module => {
       const content = fs.readFileSync(module.fullPath, 'utf8');
       const lines = content.split('\n');
@@ -101,11 +101,11 @@ export default function generateAssetsPlugin(options = {}) {
       });
     });
 
-    // Adiciona as importações únicas no início do bundle
+    // Add unique imports at the beginning of the bundle
     bundleContent += Array.from(uniqueImports).join('\n');
     bundleContent += '\n\n';
 
-    // Depois, adiciona o conteúdo de cada módulo como uma constante
+    // Then, add the content of each module as a constant
     allModules.forEach(module => {
       const content = fs.readFileSync(module.fullPath, 'utf8');
       const moduleName = module.relativePath
@@ -114,17 +114,32 @@ export default function generateAssetsPlugin(options = {}) {
         .replace(/\/(.)/g, (_, char) => char.toUpperCase())
         .replace(/-./g, match => match[1].toUpperCase());
 
-      // Remove todas as importações do conteúdo do módulo
-      let moduleContent = content.split('\n')
+      // Split content into lines
+      let moduleContent = content.split('\n');
+      
+      // Find the index of export default
+      const exportIndex = moduleContent.findIndex(line => line.startsWith('export default'));
+      
+      // Get all lines before export default that are not imports
+      const preExportContent = moduleContent
+        .slice(0, exportIndex)
         .filter(line => !line.startsWith('import'))
         .join('\n');
-
-      // Remove 'export default' e ajusta a definição da classe
-      moduleContent = moduleContent
+      
+      // Get the class content (export default and after)
+      const classContent = moduleContent
+        .slice(exportIndex)
+        .join('\n')
         .replace(/export\s+default\s+class\s+(\w+)/, 'class $1')
         .trim();
 
-      // Substitui as referências locais pelos nomes das constantes
+      // First add the pre-export content
+      if (preExportContent.trim()) {
+        bundleContent += preExportContent + '\n\n';
+      }
+
+      // Replace local references with constant names
+      let processedClassContent = classContent;
       allModules.forEach(dep => {
         const depName = dep.relativePath
           .replace(/\.gjs$/, '')
@@ -133,17 +148,17 @@ export default function generateAssetsPlugin(options = {}) {
           .replace(/-./g, match => match[1].toUpperCase());
         
         const importPath = `ember-app-suite/components/${dep.relativePath.replace(/\.gjs$/, '')}`;
-        moduleContent = moduleContent.replace(
+        processedClassContent = processedClassContent.replace(
           new RegExp(importPath, 'g'),
           depName
         );
       });
 
-      bundleContent += `const ${moduleName} = ${moduleContent};\n\n`;
+      bundleContent += `const ${moduleName} = ${processedClassContent};\n\n`;
       moduleMap.set(module.fullPath, moduleName);
     });
 
-    // Por fim, exporta o módulo de entrada como default
+    // Finally, export the entry module as default
     const entryName = moduleMap.get(entryModule.fullPath);
     bundleContent += `export default ${entryName};\n`;
 
@@ -167,18 +182,18 @@ export default function generateAssetsPlugin(options = {}) {
       relativePath: path.relative(modulesRoot, fullPath)
     }));
 
-    // Cria o diretório de saída se não existir
+    // Create output directory if it doesn't exist
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Gera o bundle
+    // Generate the bundle
     const bundleContent = generateBundleContent(entryModule, allModules);
     const bundlePath = path.join(outputDir, 'bundle.gjs');
     fs.writeFileSync(bundlePath, bundleContent);
     console.log(`✔ Bundle generated: ${bundlePath}`);
 
-    // Gera o manifest
+    // Generate the manifest
     const manifest = {
       mainDependency: {
         name: `ember-app-suite/components/${entryModule.relativePath.replace('.gjs', '')}`,

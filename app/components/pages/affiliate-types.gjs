@@ -1,143 +1,14 @@
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
-import { inject as service } from '@ember/service';
-import { on } from '@ember/modifier';
 import { action } from '@ember/object';
 import { fn } from '@ember/helper';
-import NavBarItem from '@peek/client/components/nav-bar/item';
-import OdyModal from '@peek-ui/ember-odyssey/components/modal';
-import OdyTabs from '@peek-ui/ember-odyssey/components/tabs';
-import OdyButton from '@peek-ui/ember-odyssey/components/button';
 import OdyIcon from '@peek-ui/ember-odyssey/components/icon';
 import OdyInput from '@peek-ui/ember-odyssey/components/input';
+import OdyButton from '@peek-ui/ember-odyssey/components/button';
 import OdyDropdownSingle from '@peek-ui/ember-odyssey/components/dropdown-single';
 import OdyTable from '@peek-ui/ember-odyssey/components/table';
 
-
-
-
-const TABS_MAP = {
-  AFFILIATES: 0,
-  AFFILIATE_TYPES: 1,
-  SETTINGS: 2,
-};
-
-const isTabSelected = (selectedTab, tab) => {
-  return selectedTab === tab;
-};
-
-
-const ExtensionTrigger = class ExtensionTrigger extends Component {
-  @tracked isModalVisibile = false;
-  @tracked selectedTab = 0;
-
-  @service currentUser;
-
-  @tracked affiliateTypes = [];
-
-  @action
-  openModal() {
-    this.isModalVisibile = true;
-  }
-
-  @action
-  setSelectedTab(tab) {
-    this.selectedTab = tab;
-  }
-
-  @action
-  saveAffiliateType(affiliateType) {
-    this.affiliateTypes = [...this.affiliateTypes, affiliateType];
-  }
-
-  <template>
-    <NavBarItem>
-      <a href="#extensions" {{on "click" this.openModal}}>
-        Affiliate Hub
-      </a>
-    </NavBarItem>
-
-    <OdyModal @isOpen={{this.isModalVisibile}} @openInGlobalElement={{true}}>
-      <:body>
-        <OdyTabs
-          @selected={{this.selectedTab}}
-          @onChange={{this.setSelectedTab}}
-          as |tabs|
-        >
-          <tabs.tab>
-            Affiliates
-          </tabs.tab>
-          <tabs.tab>
-            Afilliate Types
-          </tabs.tab>
-          <tabs.tab>
-            Settings
-          </tabs.tab>
-        </OdyTabs>
-
-        {{#if (isTabSelected this.selectedTab TABS_MAP.AFFILIATES)}}
-          <PagesAffiliates
-            @toAffiliateTypesPage={{fn
-              this.setSelectedTab
-              TABS_MAP.AFFILIATE_TYPES
-            }}
-          />
-        {{/if}}
-
-        {{#if (isTabSelected this.selectedTab TABS_MAP.AFFILIATE_TYPES)}}
-          <PagesAffiliateTypes
-            @affiliateTypes={{this.affiliateTypes}}
-            @saveAffiliateType={{this.saveAffiliateType}}
-          />
-        {{/if}}
-
-        {{#if (isTabSelected this.selectedTab TABS_MAP.SETTINGS)}}
-          <PagesSettings />
-        {{/if}}
-      </:body>
-    </OdyModal>
-  </template>
-};
-
-const PagesAffiliates = class PagesAfiiliates extends Component {
-  get affiliates() {
-    return false;
-  }
-
-  <template>
-    <style>
-      .extensions__affiliates-hub__no-affiliates {
-        width: 400px;
-        margin: 40px auto;
-        text-align: center;
-      }
-
-      .extensions__affiliates-hub__no-affiliates h6,
-      .extensions__affiliates-hub__no-affiliates p {
-        color: var(--color-neutral-300);
-      }
-
-      .extensions__affiliates-hub__no-affiliates p {
-        margin-top: 32px;
-        margin-bottom: 32px;
-      }
-    </style>
-
-    {{#if this.affiliates}}{{else}}
-      <div class="extensions__affiliates-hub__no-affiliates">
-        <h6>No Affiliates have signed up yet</h6>
-        <p>Complete the Settings Page, Create Affiliate Types, then send invite
-          links to potential Affiliates.</p>
-
-        <OdyButton @onClick={{@toAffiliateTypesPage}}>
-          Go to Affiliate Types
-        </OdyButton>
-      </div>
-    {{/if}}
-  </template>
-};
-
-const PagesAffiliateTypes = class PagesAffiliateTypes extends Component {
+export default class PagesAffiliateTypes extends Component {
   @tracked selectedCategory = null;
   @tracked isCreatingType = false;
   @tracked internalName = null;
@@ -407,12 +278,4 @@ const PagesAffiliateTypes = class PagesAffiliateTypes extends Component {
       {{/if}}
     {{/if}}
   </template>
-};
-
-const PagesSettings = class PagesSettings extends Component {
-  <template>
-    <h1>Settings</h1>
-  </template>
-};
-
-export default ExtensionTrigger;
+}

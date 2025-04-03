@@ -1,73 +1,95 @@
 import Component from '@glimmer/component';
-import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import { inject as service } from '@ember/service';
-import OdyButton from '@peek-ui/ember-odyssey/components/button';
+import { on } from '@ember/modifier';
+import { action } from '@ember/object';
+import { fn } from '@ember/helper';
+
+import PagesAffiliates from 'ember-app-suite/components/pages/affiliates';
+import PagesAffiliateTypes from 'ember-app-suite/components/pages/affiliate-types';
+import PagesSettings from 'ember-app-suite/components/pages/settings';
+
+import NavBarItem from '@peek/client/components/nav-bar/item';
 import OdyModal from '@peek-ui/ember-odyssey/components/modal';
-import OdyIcon from '@peek-ui/ember-odyssey/components/icon';
-import OdyFilterMenu from '@peek-ui/ember-odyssey/components/filter-menu';
+import OdyTabs from '@peek-ui/ember-odyssey/components/tabs';
+
+const TABS_MAP = {
+  AFFILIATES: 0,
+  AFFILIATE_TYPES: 1,
+  SETTINGS: 2,
+};
+
+const isTabSelected = (selectedTab, tab) => {
+  return selectedTab === tab;
+};
 
 export default class ExtensionTrigger extends Component {
-  @tracked modalIsVisible = false;
-  @service intl;
+  @tracked isModalVisibile = false;
+  @tracked selectedTab = 0;
 
-  get equipmentPools() {
-    return [...this.args.publicAPI.equipmentPools];
-  }
+  @service currentUser;
 
-  get selectedEquipmentPool() {
-    return this.args.publicAPI.equipmentPools.firstObject;
-  }
+  @tracked affiliateTypes = [];
 
   @action
   openModal() {
-    this.modalIsVisible = true;
+    this.isModalVisibile = true;
   }
 
   @action
-  closeModal() {
-    this.modalIsVisible = false;
+  setSelectedTab(tab) {
+    this.selectedTab = tab;
   }
 
   @action
-  onEquipmentPoolSelect(equipmentPool) {
-    console.log(equipmentPool);
-  }
-
-  @action
-  updateFilters() {
-
+  saveAffiliateType(affiliateType) {
+    this.affiliateTypes = [...this.affiliateTypes, affiliateType];
   }
 
   <template>
-    <OdyButton @onClick={{this.openModal}} @variant="tertiary">
-      <OdyIcon @source="extension" />
-      Daily Annoucements
-    </OdyButton>
+    <NavBarItem>
+      <a href="#extensions" {{on "click" this.openModal}}>
+        Affiliate Hub
+      </a>
+    </NavBarItem>
 
-    <OdyModal
-      @isOpen={{this.modalIsVisible}}
-      @onClose={{this.closeModal}}
-      @title="Daily Annoucements"
-    >
+    <OdyModal @isOpen={{this.isModalVisibile}} @openInGlobalElement={{true}}>
       <:body>
-        <OdyFilterMenu
-          @small={{@small}}
-          @filters={{this.equipmentPools}}
-          @onFiltersUpdate={{this.updateFilters}}
+        <OdyTabs
+          @selected={{this.selectedTab}}
+          @onChange={{this.setSelectedTab}}
+          as |tabs|
         >
-          <:content as |content|>
-            {{#each this.equipmentPools as |filter|}}
-              <content.item
-                @prop={{filter.id}}
-                data-test-manifest-headers-advanced-filters="{{filter.i18n}}"
-              >
-                {{filter.name}}
-              </content.item>
-            {{/each}}
+          <tabs.tab>
+            Affiliates
+          </tabs.tab>
+          <tabs.tab>
+            Afilliate Types
+          </tabs.tab>
+          <tabs.tab>
+            Settings
+          </tabs.tab>
+        </OdyTabs>
 
-          </:content>
-        </OdyFilterMenu>
+        {{#if (isTabSelected this.selectedTab TABS_MAP.AFFILIATES)}}
+          <PagesAffiliates
+            @toAffiliateTypesPage={{fn
+              this.setSelectedTab
+              TABS_MAP.AFFILIATE_TYPES
+            }}
+          />
+        {{/if}}
+
+        {{#if (isTabSelected this.selectedTab TABS_MAP.AFFILIATE_TYPES)}}
+          <PagesAffiliateTypes
+            @affiliateTypes={{this.affiliateTypes}}
+            @saveAffiliateType={{this.saveAffiliateType}}
+          />
+        {{/if}}
+
+        {{#if (isTabSelected this.selectedTab TABS_MAP.SETTINGS)}}
+          <PagesSettings />
+        {{/if}}
       </:body>
     </OdyModal>
   </template>

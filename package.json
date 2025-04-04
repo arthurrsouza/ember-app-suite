@@ -89,7 +89,7 @@
     "./tests/*": "./tests/*",
     "./*": "./app/*"
   },
-  "peek-extensions": { 
+  "peek-extensions": {
     "entry-point": "extension-trigger.gjs"
   }
 }

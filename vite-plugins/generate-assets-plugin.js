@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { minify } from 'terser';
 
 export default function generateAssetsPlugin(options = {}) {
   const { 
@@ -84,10 +85,11 @@ export default function generateAssetsPlugin(options = {}) {
     return foundModules;
   }
 
-  function generateBundleContent(entryModule, allModules) {
+  async function generateBundleContent(entryModule, allModules) {
     let bundleContent = '';
     const moduleMap = new Map();
     const uniqueImports = new Set();
+    const preservedStrings = new Map();
 
     // First, collect all non-local imports from all modules
     allModules.forEach(module => {
@@ -162,10 +164,39 @@ export default function generateAssetsPlugin(options = {}) {
     const entryName = moduleMap.get(entryModule.fullPath);
     bundleContent += `export default ${entryName};\n`;
 
+    // Basic minification
+    bundleContent = bundleContent
+      // Remove comments
+      .replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '')
+      // Remove empty lines
+      .replace(/^\s*[\r\n]/gm, '')
+      // Preserve handlebars, template literals, and decorators before general space removal
+      .replace(/(\{\{.*?\}\}|`[\s\S]*?`|@\w+)/g, (match) => {
+        // Generate a unique placeholder
+        const placeholder = `__PRESERVED_${Math.random().toString(36).substr(2, 9)}__`;
+        // Store the mapping
+        preservedStrings.set(placeholder, match);
+        return placeholder;
+      })
+      // Remove extra spaces
+      .replace(/\s+/g, ' ')
+      // Remove spaces around operators (except in preserved strings)
+      .replace(/\s*([=+\-*/<>!])\s*/g, '$1')
+      // Remove spaces after commas
+      .replace(/,\s+/g, ',')
+      // Remove spaces around brackets and parentheses
+      .replace(/\s*([\[\](){}])\s*/g, '$1')
+      // Restore preserved strings
+      .replace(/__PRESERVED_[a-z0-9]+__/g, (match) => {
+        return preservedStrings.get(match) || match;
+      })
+      // Trim the final result
+      .trim();
+
     return bundleContent;
   }
 
-  function generateBundle() {
+  async function generateBundle() {
     const packageData = readPackageJson();
     const peekConfig = packageData['peek-extensions'] || {};
     const entryPoint = peekConfig['entry-point'];
@@ -188,10 +219,10 @@ export default function generateAssetsPlugin(options = {}) {
     }
 
     // Generate the bundle
-    const bundleContent = generateBundleContent(entryModule, allModules);
+    const bundleContent = await generateBundleContent(entryModule, allModules);
     const bundlePath = path.join(outputDir, 'bundle.gjs');
     fs.writeFileSync(bundlePath, bundleContent);
-    console.log(`✔ Bundle generated: ${bundlePath}`);
+    console.log(`✔ Bundle generated and minified: ${bundlePath}`);
 
     // Generate the manifest
     const manifest = {

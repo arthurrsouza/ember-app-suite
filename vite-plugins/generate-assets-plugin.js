@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { minify } from 'terser';
 
 export default function generateAssetsPlugin(options = {}) {
   const { 

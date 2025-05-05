@@ -18,35 +18,23 @@ You will need the following things properly installed on your computer.
 - `git clone <repository-url>` this repository
 - `cd ember-app-suite`
 - `pnpm install`
+- Add the entry point component to `package.json` under `peek-extensions`
+```
+...
+"exports": {
+  "./tests/*": "./tests/*",
+  "./*": "./app/*"
+},
+"peek-extensions": {
+  "entry-point": "extension-trigger.gjs"
+}
+```
 
 ## Running / Development
 
-- `pnpm start`
-- Visit your app at [http://localhost:4200](http://localhost:4200).
-- Visit your tests at [http://localhost:4200/tests](http://localhost:4200/tests).
-
-### Code Generators
-
-Make use of the many generators for code, try `ember help generate` for more details
-
-### Running Tests
-
-- `pnpm test`
-- `pnpm test:ember --server`
-
-### Linting
-
-- `pnpm lint`
-- `pnpm lint:fix`
-
-### Building
-
-- `pnpm ember build` (development)
-- `pnpm build` (production)
-
-### Deploying
-
-Specify what it takes to deploy your app.
+- `vite`
+- Visit your app at [http://localhost:4205](http://localhost:4205).
+- Access the built extension at [http://localhost:4205/assets/extension-files/bundle.gjs](http://localhost:4205/assets/extension-files/bundle.gjs).
 
 ## Further Reading / Useful Links
 
